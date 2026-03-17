@@ -6,8 +6,150 @@
           content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Square game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
 
+<body class="bg-slate-900 h-screen flex flex-col items-center justify-center overflow-hidden font-sans text-white">
+
+<div class="mb-4 flex items-center gap-6 bg-slate-800 p-4 rounded-xl border border-white shadow-2xl">
+    <div class="border-r border-slate-700 pr-6 text-left">
+        <p class="text-white text-[10px] uppercase font-bold">Level</p>
+        <p id="ui-level" class="text-3xl font-black text-white italic">1</p>
+    </div>
+    <div class="text-left">
+        <p class="text-white text-[10px] uppercase font-bold">Mince</p>
+        <p class="text-3xl font-black text-white italic"><span id="ui-score">0</span><span
+                class="text-slate-400">/</span><span id="ui-target">10</span></p>
+    </div>
+    <button id="btn-restart"
+            class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg font-bold text-xs shadow-lg active:scale-95">Restart
+    </button>
+</div>
+
+<div class="relative">
+    <canvas id="gameCanvas" width="400" height="600"
+            class="bg-black border-4 border-slate-700 rounded-lg shadow-2xl"></canvas>
+    <div id="levelOverlay"
+         class="hidden absolute inset-0 bg-black flex flex-col items-center justify-center p-6 rounded-lg text-center">
+        <h2 class="text-5xl font-black text-green-400 italic uppercase">HOTOVO!</h2>
+        <p id="nextLevelText" class="text-slate-300 my-6 text-xl">Další level: 15 mincí</p>
+        <button id="btn-next"
+                class="bg-blue-600 hover:bg-blue-800 px-12 py-4 rounded-full font-black text-2xl shadow-xl active:scale-90">
+            DALŠÍ LEVEL
+        </button>
+    </div>
+</div>
+
+<div class="mt-6 flex gap-8 text-white text-[11px] uppercase font-bold italic">
+    <span>A D / ⬅️ ➡️ POHYB</span><span>W / SPACE / ⬆️ SKOK</span><span
+        class="text-red-600 underline">R - RESET LEVEL</span>
+</div>
+
+<script>
+    const canvas = document.getElementById("gameCanvas"), ctx = canvas.getContext("2d"),
+        overlay = document.getElementById("levelOverlay");
+    let gs = {level: 1, score: 0, target: 10, paused: false}, platforms = [], coins = [], keys = {};
+    const p = {x: 185, y: 500, size: 30, vx: 0, vy: 0, jump: -13.5, grav: 0.55, onG: false};
+
+    function init() {
+        gs.paused = false;
+        gs.score = 0;
+        overlay.classList.add("hidden");
+        p.x = 185;
+        p.y = 500;
+        p.vy = p.vx = 0;
+        platforms = [{x: 0, y: 570, w: 400, h: 30}];
+        coins = [];
+        for (let i = 1; i < 100; i++) {
+            let px = Math.random() * 320, py = 570 - (i * 95);
+            platforms.push({x: px, y: py, w: 80, h: 12});
+            if (Math.random() > 0.4) coins.push({x: px + 30, y: py - 35, s: 12, act: true});
+        }
+        updateUI();
+    }
+
+    const updateUI = () => {
+        document.getElementById("ui-level").innerText = gs.level;
+        document.getElementById("ui-score").innerText = gs.score;
+        document.getElementById("ui-target").innerText = gs.target;
+    };
+
+    window.onkeydown = e => {
+        keys[e.code] = true;
+        if (e.code === 'KeyR') init();
+    };
+    window.onkeyup = e => keys[e.code] = false;
+    document.getElementById("btn-restart").onclick = () => {
+        gs.level = 1;
+        gs.target = 10;
+        init();
+    };
+    document.getElementById("btn-next").onclick = init;
+
+    function loop() {
+        if (!gs.paused) {
+            p.vx = (keys.ArrowLeft || keys.KeyA) ? -6.5 : (keys.ArrowRight || keys.KeyD) ? 6.5 : 0;
+            if ((keys.Space || keys.ArrowUp || keys.KeyW) && p.onG) {
+                p.vy = p.jump;
+                p.onG = false;
+            }
+            p.vy += p.grav;
+            p.x += p.vx;
+            p.y += p.vy;
+            if (p.x > 400) p.x = -p.size;
+            if (p.x < -p.size) p.x = 400;
+            p.onG = false;
+            platforms.forEach(plat => {
+                if (p.vy >= 0 && p.x < plat.x + plat.w && p.x + p.size > plat.x && p.y + p.size >= plat.y && p.y + p.size <= plat.y + plat.h + p.vy) {
+                    p.y = plat.y - p.size;
+                    p.vy = 0;
+                    p.onG = true;
+                }
+            });
+            coins.forEach(c => {
+                if (c.act && p.x < c.x + c.s && p.x + p.size > c.x && p.y < c.y + c.s && p.y + p.size > c.y) {
+                    c.act = false;
+                    gs.score++;
+                    updateUI();
+                }
+            });
+            if (p.y < 200) {
+                let d = 200 - p.y;
+                p.y = 200;
+                platforms.forEach(plat => plat.y += d);
+                coins.forEach(c => c.y += d);
+            }
+            if (gs.score >= gs.target) {
+                gs.paused = true;
+                gs.level++;
+                gs.target += 5;
+                document.getElementById("nextLevelText").innerText = `Další cíl: ${gs.target} mincí`;
+                overlay.classList.remove("hidden");
+            }
+            if (p.y > 700) init();
+        }
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, 400, 600);
+        ctx.fillStyle = "#1b1287";
+        platforms.forEach(plat => plat.y > -50 && ctx.fillRect(plat.x, plat.y, plat.w, plat.h));
+        ctx.fillStyle = "#fcdb03";
+        coins.forEach(c => {
+            if (c.act && c.y > -50) {
+                ctx.beginPath();
+                ctx.arc(c.x + 6, c.y + 6, 6, 0, 7);
+                ctx.fill();
+            }
+        });
+        ctx.fillStyle = "#cccccc";
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+    }
+
+    init();
+    loop();
+</script>
 </body>
 </html>
