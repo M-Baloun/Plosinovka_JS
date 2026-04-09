@@ -49,7 +49,7 @@
     const canvas = document.getElementById("gameCanvas"), ctx = canvas.getContext("2d"),
         overlay = document.getElementById("levelOverlay");
     let gs = {level: 1, score: 0, target: 10, paused: false}, platforms = [], coins = [], keys = {};
-    const p = {x: 185, y: 500, size: 30, vx: 0, vy: 0, jump: -13.5, grav: 0.55, onG: false};
+    const p = {x: 185, y: 500, size: 30, vx: 0, vy: 0, jump: -8, grav: 0.2, onG: false};
 
     function init() {
         gs.paused = false;
@@ -88,7 +88,7 @@
 
     function loop() {
         if (!gs.paused) {
-            p.vx = (keys.ArrowLeft || keys.KeyA) ? -6.5 : (keys.ArrowRight || keys.KeyD) ? 6.5 : 0;
+            p.vx = (keys.ArrowLeft || keys.KeyA) ? -3 : (keys.ArrowRight || keys.KeyD) ? 3 : 0;
             if ((keys.Space || keys.ArrowUp || keys.KeyW) && p.onG) {
                 p.vy = p.jump;
                 p.onG = false;
@@ -96,8 +96,8 @@
             p.vy += p.grav;
             p.x += p.vx;
             p.y += p.vy;
-            if (p.x > 400) p.x = -p.size;
-            if (p.x < -p.size) p.x = 400;
+            if (p.x > 400) p.x = -p.size; //teleport
+            if (p.x < -p.size) p.x = 400; //přes okraj
             p.onG = false;
             platforms.forEach(plat => {
                 if (p.vy >= 0 && p.x < plat.x + plat.w && p.x + p.size > plat.x && p.y + p.size >= plat.y && p.y + p.size <= plat.y + plat.h + p.vy) {
@@ -107,7 +107,11 @@
                 }
             });
             coins.forEach(c => {
-                if (c.act && p.x < c.x + c.s && p.x + p.size > c.x && p.y < c.y + c.s && p.y + p.size > c.y) {
+                if (c.act
+                    && p.x < c.x + c.s
+                    && p.x + p.size > c.x
+                    && p.y < c.y + c.s
+                    && p.y + p.size > c.y) {  //sbírání mincí
                     c.act = false;
                     gs.score++;
                     updateUI();
@@ -126,7 +130,7 @@
                 document.getElementById("nextLevelText").innerText = `Další cíl: ${gs.target} mincí`;
                 overlay.classList.remove("hidden");
             }
-            if (p.y > 700) init();
+            if (p.y > 650) init();
         }
         draw();
         requestAnimationFrame(loop);
